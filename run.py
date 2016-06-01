@@ -1,11 +1,12 @@
 #!/usr/local/bin/python
 # -*- coding: utf-8 -*-
 
-
+import sys, getopt
+import codecs
 import random
 
 rand_generator = random.SystemRandom()
-alphabet= (u"abcdefghijklmnopqrstuvwxyz"
+default_alphabet= (u"abcdefghijklmnopqrstuvwxyz"
           u"èéêëēėęÿûüùúūîïíīįìôöòóœøōõàáâäæãåāßśšłžźżçćčñń")
 
 def random_char(alph):
@@ -96,13 +97,19 @@ def check_norepeat(grid):
 
     return norepeat
 
-grid = generate_grid(alphabet)
 
-for row in grid:
-    print (''.join(row))
+def save_to_file(grid, filepath):
+    outfile = codecs.open(filepath, mode='w+', encoding='utf-8')
+    outfile.writelines([ ((''.join(row)) + u'\n') for row in grid ])
+
+def alphabet_from_file(filepath):
+    alph = codecs.open(filepath, encoding='utf-8').readline()
+    # Remove newline
+    alph = alph[:-1]
+    return alph
 
 
-def test():
+def test(alphabet):
     grid_array = []
     conflict_list = []
     for i in range(100):
@@ -119,10 +126,72 @@ def test():
 
     print (conflict_list)
 
-grid = generate_grid(alphabet)
 
-for row in grid:
-    print (''.join(row))
+def main(argv):
+    inname = ''
+    alphabet = default_alphabet
+    outname=''
+
+    try:
+        opts, args = getopt.getopt(argv, "i:o:a:")
+    except getopt.GetoptError:
+        # TODO: Print help for the user
+        sys.exit(2)
+
+    # Processing options
+    for option, argument in opts:
+        if option=="-i":
+            if argument is not None:
+                inname = argument
+            else:
+                print ("No file provided. Using default alphabet.")
+
+        if option=="-o":
+            if argument is not None:
+                outname = argument
+            else:
+                outname = 'grid.txt'
+                print ("No output filename provided. Using: "), (outname)
+
+        if option=="-a":
+            if argument is not None:
+                alphabet = argument
+            else:
+                print ("No alphabet provided. Using default alphabet.")
+
+    # Main program
+
+    if inname:
+        alphabet = alphabet_from_file(inname)
+
+    grid = generate_grid(alphabet)
+    i = 0
+
+    print (alphabet)
+    test_alphabet = [ch for ch in alphabet]
+    last_char = test_alphabet.pop()
+    test_alphabet.insert(0, last_char)
+    last_char = test_alphabet.pop()
+    test_alphabet.insert(0, last_char)
+    test_alphabet = ''.join(test_alphabet)
+    print (test_alphabet)
+    print ('contains newline:'),(alphabet.count(r'\n'))
+    try:
+        for row in grid:
+            line = ''.join(row)
+            print (line)
+    except UnicodeEncodeError:
+        print ("Your console does not support unicode characters.")
+        if outname:
+            print ("Saving grid to file: "),(outname)
+        else:
+            print ("You can generate a grid to a file using '-o <filename>' option.")
+
+    if outname:
+        save_to_file(grid, outname)
+
+if __name__ == "__main__":
+   main(sys.argv[1:])
 
 
-#test()
+
