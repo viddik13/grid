@@ -81,7 +81,7 @@ def mix_grid(grid):
     iterations = rand_generator.randrange(100*len(grid), 1000*len(grid))
     i = 0
     while i < iterations:
-        row_or_column = rand_generator.randrange(1)
+        row_or_column = rand_generator.randrange(2)
 
         if row_or_column == 1:
             mix_cols(grid)

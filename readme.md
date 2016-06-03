@@ -1,4 +1,4 @@
-You need python2.7 or 3+ to run the scrit.
+You need python2.7 or 3+ to run the script.
 
 In console:
 python run.py <options>
