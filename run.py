@@ -11,6 +11,7 @@ python run.py <options>
 -o <filename>      Write output to a file.
 -a "<alphabet>"    Enter custom alphabet using keyboard.
                    May not work properly with unicode characters - use -i and o- instead.
+-r <count>         Generate multiple grids.
 """
 
 import sys
@@ -18,13 +19,14 @@ import getopt
 import codecs
 import random
 import os
+import fcntl, termios, struct
 
 # This line is needed to fix utf-8 in Wondows command line.
 codecs.register(lambda name: codecs.lookup('utf-8') if name == 'cp65001' else None)
 
 rand_generator = random.SystemRandom()
 default_alphabet = (u"abcdefghijklmnopqrstuvwxyz"
-                    u"èéêëēėęÿûüùúūîïíīįìôöòóœøōõàáâäæãåāßśšłžźżçćčñń")
+                   u"èéêëēėęÿûüùúūîïíīįìôöòóœøōõàáâäæãåāßśšłžźżçćčñń")
 
 
 def random_char(alph):
@@ -136,11 +138,15 @@ def check_norepeat(grid):
 
     return norepeat
 
-
-def save_to_file(grid, filepath):
-    """Saves the grid to a file specified by filepath."""
+def save_grids(grid_array, filepath):
+    """Saves the multiple grids to a file specified by filepath."""
     outfile = codecs.open(filepath, mode='w+', encoding='utf-8')
-    outfile.writelines([((''.join(row)) + u'\n') for row in grid])
+    for grid in grid_array:
+        outfile.writelines([((''.join(row)) + u'\n') for row in grid])
+        # outfile.write(''.join(['-' for i in range(len(grid_array[0]))]))
+        outfile.write('-'*(len(grid_array[0])))
+        outfile.write(u'\n')
+
 
 
 def alphabet_from_file(filepath):
@@ -151,31 +157,29 @@ def alphabet_from_file(filepath):
     return alph
 
 
-def test(alphabet):
-    grid_array = []
-    conflict_list = []
-    for i in range(100):
-        grid = generate_grid(alphabet)
+def get_terminal_width(count=1):
 
-        grid_array.append(grid)
-        norepeat = check_norepeat(grid)
+    h, w, hp, wp = struct.unpack('HHHH',
+                                 fcntl.ioctl(0, termios.TIOCGWINSZ,
+                                             struct.pack('HHHH', 0, 0, 0, 0)))
+    return w
 
-        if norepeat:
-            print ("Test case "), (i), (":OK")
-        else:
-            print ("Test case "), (i), (":FAILED")
-            conflict_list.append(i)
-
-    print (conflict_list)
+def generate_multiple(alphabet, count):
+    # ter_width = get_terminal_width()[0]
+    #
+    # grids_per_row = ter_width//(len(alphabet) + 1)
+    grid_arr = [generate_grid(alphabet) for gr in range(count)]
+    return grid_arr
 
 
 def main(argv):
     inname = ''
     alphabet = default_alphabet
     outname = ''
+    count = 1
 
     try:
-        opts, args = getopt.getopt(argv, "i:o:a:h", ['help'])
+        opts, args = getopt.getopt(argv, "i:o:r:a:h", ['help'])
     except getopt.GetoptError:
         # TODO: Print help for the user
         sys.exit(2)
@@ -205,6 +209,10 @@ def main(argv):
             print (__doc__)
             return 0
 
+        if option == "-r":
+            if int(argument):
+                count = int(argument)
+
     # Main program
 
     if inname:
@@ -215,13 +223,38 @@ def main(argv):
 
     alphabet = ''.join(set(alphabet))
 
-    grid = generate_grid(alphabet)
-    i = 0
+    grid_arr = generate_multiple(alphabet, count)
+
+    line_arr = [[] for i in range(len(alphabet))]
+    allowed = get_terminal_width() // (len(alphabet) + 1)
+
+    if allowed == 0:
+        allowed = 1
+    grids_per_row = 0
 
     try:
-        for row in grid:
-            line = ''.join(row)
-            print (line)
+        for grid in grid_arr:
+
+            for row_index in range(len(alphabet)):
+                for char in grid[row_index]:
+                    line_arr[row_index].append(char)
+                line_arr[row_index].append('|')
+
+            grids_per_row += 1
+
+            if grids_per_row == allowed:
+                for line in line_arr:
+                    print (''.join(line))
+                print ('-'*(len(alphabet)+1)*allowed)
+                grids_per_row = 0
+                line_arr = [[] for i in range(len(alphabet))]
+
+        if line_arr:
+            if line_arr[0]:
+                for line in line_arr:
+                    print (''.join(line))
+
+
     except UnicodeEncodeError:
         print ("Your console does not support unicode characters.")
         if outname:
@@ -235,12 +268,12 @@ def main(argv):
             while answer != 'y':
                 answer = raw_input("File already exists. Overwrite? (y/n): ")
                 if answer == 'y':
-                    save_to_file(grid, outname)
+                    save_grids(grid_arr, outname)
                 elif answer == 'n':
                     print ("Not saving to file.")
                     break
         else:
-            save_to_file(grid, outname)
+            save_grids(grid_arr, outname)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
